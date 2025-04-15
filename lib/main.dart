@@ -12,6 +12,12 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+TextEditingController _searchControllerState = TextEditingController();
+String _searchTermState = '';
+
+TextEditingController _searchControllerStation = TextEditingController();
+String _searchTermStation = '';
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -19,21 +25,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Väder Applikation',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Nederbörd'),
     );
   }
-}
-
-class MockList {
-  const MockList({required this.name, required this.votes});
-
-  final String name;
-  final int votes;
 }
 
 class MyHomePage extends StatefulWidget {
@@ -59,33 +58,78 @@ class _MyHomePageState extends State<MyHomePage> {
           Container(
             color: Colors.blueAccent,
             width: double.infinity,
-            height: 100.0,
-            child: (Text("Filter Options")),
+            height: 50.0,
+            child: TextField(
+              controller: _searchControllerState,
+              onChanged: (value) {
+                setState(() {
+                  _searchTermState = value
+                      .toLowerCase(); // Normalize for case-insensitive search
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Sök efter Landskap...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          Container(
+            color: Colors.blueAccent,
+            width: double.infinity,
+            height: 50.0,
+            child: TextField(
+              controller: _searchControllerStation,
+              onChanged: (value) {
+                setState(() {
+                  _searchTermStation = value
+                      .toLowerCase(); // Normalize for case-insensitive search
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Sök efter Station...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
           Container(
             color: Colors.blue[100],
             height: 300.0,
             child: StreamBuilder<QuerySnapshot>(
               stream:
-                  FirebaseFirestore.instance.collection('testDB').snapshots(),
+                  FirebaseFirestore.instance.collection('ndrbrd').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No users found"));
+                  return const Center(child: Text("Hittade ingen data"));
                 }
 
-                var users = snapshot.data!.docs;
+                var ndrbrdData = snapshot.data!.docs.where((doc) {
+                  if (_searchTermState != "") {
+                    var landskap = doc['Landskap']?.toString().toLowerCase();
+                    return landskap!.contains(_searchTermState);
+                  } else {
+                    var station = doc['Station']?.toString().toLowerCase();
+                    return station!.contains(_searchTermStation);
+                  }
+                }).toList();
+
+                if (ndrbrdData.isEmpty) {
+                  return const Center(child: Text("Ingen matchning"));
+                }
 
                 return ListView.builder(
-                  itemCount: users.length,
+                  itemCount: ndrbrdData.length,
                   itemBuilder: (context, index) {
-                    var user = users[index];
+                    var dataNdrbrd = ndrbrdData[index];
                     return ListTile(
-                      title:
-                          Text('Name: ${user['firstName']} ${user['surName']}'),
-                      subtitle: Text("Age: ${user['age']}"),
+                      title: Text(
+                          'Station: ${dataNdrbrd['Station']} - ${dataNdrbrd['Landskap']}'),
+                      subtitle: Text(
+                          "jan: ${dataNdrbrd['jan']} feb: ${dataNdrbrd['feb']} mar: ${dataNdrbrd['mar']} apr: ${dataNdrbrd['apr']}"),
                     );
                   },
                 );
