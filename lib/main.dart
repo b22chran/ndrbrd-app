@@ -53,7 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        // mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             color: Colors.blueAccent,
@@ -61,12 +61,6 @@ class _MyHomePageState extends State<MyHomePage> {
             height: 50.0,
             child: TextField(
               controller: _searchControllerState,
-              onChanged: (value) {
-                setState(() {
-                  _searchTermState = value
-                      .toLowerCase(); // Normalize for case-insensitive search
-                });
-              },
               decoration: InputDecoration(
                 hintText: 'Sök efter Landskap...',
                 prefixIcon: Icon(Icons.search),
@@ -80,12 +74,6 @@ class _MyHomePageState extends State<MyHomePage> {
             height: 50.0,
             child: TextField(
               controller: _searchControllerStation,
-              onChanged: (value) {
-                setState(() {
-                  _searchTermStation = value
-                      .toLowerCase(); // Normalize for case-insensitive search
-                });
-              },
               decoration: InputDecoration(
                 hintText: 'Sök efter Station...',
                 prefixIcon: Icon(Icons.search),
@@ -93,14 +81,29 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
           ),
+          SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _searchTermState = _searchControllerState.text.toLowerCase();
+                _searchTermStation =
+                    _searchControllerStation.text.toLowerCase();
+              });
+              print("Button pressed"); //test wich step to start a meassure 
+            },
+            child: Text("Sök"),
+          ),
+          SizedBox(height: 8),
           Container(
             color: Colors.blue[100],
-            height: 300.0,
+            height: 500,
             child: StreamBuilder<QuerySnapshot>(
               stream:
                   FirebaseFirestore.instance.collection('ndrbrd').snapshots(),
               builder: (context, snapshot) {
+                
                 if (snapshot.connectionState == ConnectionState.waiting) {
+                  print("returned");//test to see wich step to stop a meassure
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -108,13 +111,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
 
                 var ndrbrdData = snapshot.data!.docs.where((doc) {
-                  if (_searchTermState != "") {
-                    var landskap = doc['Landskap']?.toString().toLowerCase();
-                    return landskap!.contains(_searchTermState);
-                  } else {
-                    var station = doc['Station']?.toString().toLowerCase();
-                    return station!.contains(_searchTermStation);
-                  }
+                  var landskap = doc['Landskap']?.toString().toLowerCase();
+                  var station = doc['Station']?.toString().toLowerCase();
+
+                  final matchLandskap = _searchTermState.isEmpty ||
+                      landskap!.contains(_searchTermState);
+                  final matchStation = _searchTermStation.isEmpty ||
+                      station!.contains(_searchTermStation);
+
+                  return matchLandskap && matchStation;
                 }).toList();
 
                 if (ndrbrdData.isEmpty) {
