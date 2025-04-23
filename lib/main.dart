@@ -53,7 +53,6 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Column(
-        // mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             color: Colors.blueAccent,
@@ -89,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 _searchTermStation =
                     _searchControllerStation.text.toLowerCase();
               });
-              print("Button pressed"); //test wich step to start a meassure 
+              print("Button pressed"); //test wich step to start a meassure
             },
             child: Text("Sök"),
           ),
@@ -101,9 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
               stream:
                   FirebaseFirestore.instance.collection('ndrbrd').snapshots(),
               builder: (context, snapshot) {
-                
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  print("returned");//test to see wich step to stop a meassure
+                  print("returned"); //test to see wich step to stop a meassure
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -134,7 +132,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       title: Text(
                           'Station: ${dataNdrbrd['Station']} - ${dataNdrbrd['Landskap']}'),
                       subtitle: Text(
-                          "jan: ${dataNdrbrd['jan']} feb: ${dataNdrbrd['feb']} mar: ${dataNdrbrd['mar']} apr: ${dataNdrbrd['apr']}"),
+                          "jan: ${dataNdrbrd['jan']} feb: ${dataNdrbrd['feb']} mar: ${dataNdrbrd['mar']} apr: ${dataNdrbrd['apr']} maj: ${dataNdrbrd['maj']} juni: ${dataNdrbrd['jun']} juli: ${dataNdrbrd['jul']} aug: ${dataNdrbrd['aug']} sep: ${dataNdrbrd['sep']} okt: ${dataNdrbrd['okt']} nov: ${dataNdrbrd['nov']} dec: ${dataNdrbrd['dec']}"),
                     );
                   },
                 );
