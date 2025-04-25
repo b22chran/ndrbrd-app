@@ -4,7 +4,6 @@ import 'package:weather_app/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-// import 'package:weather_app/mongo_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
