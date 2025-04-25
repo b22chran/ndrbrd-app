@@ -207,18 +207,6 @@ class _MyFirebasePage extends State<MyFirebasePage> {
   }
 }
 
-// Future<List<dynamic>> fetchNdrbrdData(String landskap, String station) async {
-//   final response = await http.get(
-//     Uri.parse(
-//       'http://localhost:3000/ndrbrd?landskap=$landskap&station=$station')
-//   );
-
-//   if (response.statusCode == 200) {
-//     return json.decode(response.body);
-//   } else {
-//     throw Exception('Failed to load data');
-//   }
-// }
 Future<List<dynamic>> fetchNdrbrdData(String landskap, String station) async {
   final uri = Uri.parse(
     'http://localhost:3000/weather?landskap=$landskap&station=$station',
