@@ -39,6 +39,9 @@ dependencies:
   mongo_dart: ^0.10.0
   bson: ^5.0.5
   http: ^0.13.6
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  csv: ^5.0.2
 
 dev_dependencies:
   flutter_test:

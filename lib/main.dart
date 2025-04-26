@@ -4,6 +4,8 @@ import 'package:weather_app/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:weather_app/performance_tester.dart';
+import 'dart:math';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,40 @@ String _searchTermStateMongo = '';
 
 TextEditingController _searchControllerStationMongo = TextEditingController();
 String _searchTermStationMongo = '';
+
+Future<Map<String, List<String>>> fetchAllStationsAndLandskap() async {
+  final snapshot = await FirebaseFirestore.instance.collection('ndrbrd').get();
+
+  final Set<String> stations = {};
+  final Set<String> landskap = {};
+
+  for (var doc in snapshot.docs) {
+    final data = doc.data() as Map<String, dynamic>;
+    if (data.containsKey('Station')) {
+      stations.add(data['Station']);
+    }
+    if (data.containsKey('Landskap')) {
+      landskap.add(data['Landskap']);
+    }
+  }
+
+  return {
+    'stations': stations.toList(),
+    'landskap': landskap.toList(),
+  };
+}
+
+List<String> generateRandomQueries(List<String> allPossibleQueries, int count, int seed) {
+  final random = Random(seed);
+  final List<String> randomized = [];
+
+  for (int i = 0; i < count; i++) {
+    final index = random.nextInt(allPossibleQueries.length);
+    randomized.add(allPossibleQueries[index]);
+  }
+
+  return randomized;
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -53,15 +89,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0; // Default to InventoryPage
+  int _selectedIndex = 0;
 
-  // List of pages
   late final List<Widget> _pages;
   @override
   void initState() {
     super.initState();
     _pages = [
-      const Center(child: Text('Home Page')),
+      PerformanceTestHomePage(title: "Test Home Page"),
       MyFirebasePage(title: 'Nederbörd Firebase'),
       MyMongoPage(title: "Nederbörd MoongoDB"),
     ];
@@ -74,8 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: _pages[_selectedIndex], // Display selected page
-
+      body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (int index) {
@@ -97,6 +131,108 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+class PerformanceTestHomePage extends StatefulWidget {
+  @override
+  const PerformanceTestHomePage({super.key, required this.title});
+
+  final String title;
+  _PerformanceTestHomePageState createState() => _PerformanceTestHomePageState();
+}
+
+class _PerformanceTestHomePageState extends State<PerformanceTestHomePage> {
+  String _queryType = 'station';
+  String _source = 'mongo';
+  bool _isRunning = false;
+  String _status = 'Idle';
+
+  Future<List<dynamic>> fetchFromMongo(String queryValue) async {
+    final uri = Uri.parse('http://localhost:3000/weather?$_queryType=$queryValue');
+    final resp = await http.get(uri);
+    if (resp.statusCode != 200) throw Exception('MongoDB fetch failed');
+    return json.decode(resp.body);
+  }
+
+  Future<List<dynamic>> fetchFromFirebase(String queryValue) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('ndrbrd')
+        .where(_queryType == 'station' ? 'Station' : 'Landskap', isEqualTo: queryValue)
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+Future<void> startPerformanceTest() async {
+  setState(() {
+    _isRunning = true;
+    _status = "Running...";
+  });
+
+  final int numberOfQueries = 10;
+  final int seed = 42;
+
+  // Fetch station and landskap names from database dynamically
+  final allValues = await fetchAllStationsAndLandskap();
+  final allStations = allValues['stations']!;
+  final allLandskap = allValues['landskap']!;
+
+  // Randomize queries using seed
+  List<String> queries;
+  if (_queryType == 'station') {
+    queries = generateRandomQueries(allStations, numberOfQueries, seed);
+  } else {
+    queries = generateRandomQueries(allLandskap, numberOfQueries, seed);
+  }
+
+  // Start the performance test
+  final tester = PerformanceTester(
+    queryValues: queries,
+    fetcher: _source == 'mongo' ? fetchFromMongo : fetchFromFirebase,
+    queryType: _queryType,
+    intervalMs: 1500,
+    testName: '${_source}_${_queryType}_test',
+  );
+
+  await tester.runTest();
+
+  setState(() {
+    _isRunning = false;
+    _status = "Done! CSV saved.";
+  });
+}
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButton<String>(
+            value: _queryType,
+            items: ['station', 'landskap']
+                .map((q) => DropdownMenuItem(value: q, child: Text(q)))
+                .toList(),
+            onChanged: (value) => setState(() => _queryType = value!),
+          ),
+          DropdownButton<String>(
+            value: _source,
+            items: ['mongo', 'firebase']
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: (value) => setState(() => _source = value!),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _isRunning ? null : startPerformanceTest,
+            child: const Text("Start Performance Test"),
+          ),
+          const SizedBox(height: 20),
+          Text(_status),
+        ],
+      ),
+    );
+  }
+}
 class MyFirebasePage extends StatefulWidget {
   const MyFirebasePage({super.key, required this.title});
 
@@ -150,7 +286,6 @@ class _MyFirebasePage extends State<MyFirebasePage> {
                 _searchTermStation =
                     _searchControllerStation.text.toLowerCase();
               });
-              print("Button pressed"); //test wich step to start a meassure
             },
             child: Text("Sök"),
           ),
@@ -163,7 +298,6 @@ class _MyFirebasePage extends State<MyFirebasePage> {
                   FirebaseFirestore.instance.collection('ndrbrd').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  print("returned"); //test to see wich step to stop a meassure
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -273,8 +407,6 @@ class _MyMongoPage extends State<MyMongoPage> {
                 _searchTermStationMongo =
                     _searchControllerStationMongo.text.toLowerCase();
               });
-              print("Button pressed"); //test wich step to start a meassure
-              print("Fetching with landskap=$_searchTermStateMongo, station=$_searchTermStationMongo");
             },
             child: Text("Sök"),
           ),
