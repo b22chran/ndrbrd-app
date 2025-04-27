@@ -50,7 +50,8 @@ Future<Map<String, List<String>>> fetchAllStationsAndLandskap() async {
   };
 }
 
-List<String> generateRandomQueries(List<String> allPossibleQueries, int count, int seed) {
+List<String> generateRandomQueries(
+    List<String> allPossibleQueries, int count, int seed) {
   final random = Random(seed);
   final List<String> randomized = [];
 
@@ -96,7 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _pages = [
-      PerformanceTestHomePage(title: "Test Home Page"),
+      PerformanceTestHomePage(title: "Prestanda Test (ms)"),
       MyFirebasePage(title: 'Nederbörd Firebase'),
       MyMongoPage(title: "Nederbörd MoongoDB"),
     ];
@@ -136,17 +137,21 @@ class PerformanceTestHomePage extends StatefulWidget {
   const PerformanceTestHomePage({super.key, required this.title});
 
   final String title;
-  _PerformanceTestHomePageState createState() => _PerformanceTestHomePageState();
+  _PerformanceTestHomePageState createState() =>
+      _PerformanceTestHomePageState();
 }
 
 class _PerformanceTestHomePageState extends State<PerformanceTestHomePage> {
+  final TextEditingController _countController =
+      TextEditingController(text: "10");
   String _queryType = 'station';
   String _source = 'mongo';
   bool _isRunning = false;
   String _status = 'Idle';
 
   Future<List<dynamic>> fetchFromMongo(String queryValue) async {
-    final uri = Uri.parse('http://localhost:3000/weather?$_queryType=$queryValue');
+    final uri =
+        Uri.parse('http://localhost:3000/weather?$_queryType=$queryValue');
     final resp = await http.get(uri);
     if (resp.statusCode != 200) throw Exception('MongoDB fetch failed');
     return json.decode(resp.body);
@@ -155,50 +160,50 @@ class _PerformanceTestHomePageState extends State<PerformanceTestHomePage> {
   Future<List<dynamic>> fetchFromFirebase(String queryValue) async {
     final snapshot = await FirebaseFirestore.instance
         .collection('ndrbrd')
-        .where(_queryType == 'station' ? 'Station' : 'Landskap', isEqualTo: queryValue)
+        .where(_queryType == 'station' ? 'Station' : 'Landskap',
+            isEqualTo: queryValue)
         .get();
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
-Future<void> startPerformanceTest() async {
-  setState(() {
-    _isRunning = true;
-    _status = "Running...";
-  });
+  Future<void> startPerformanceTest() async {
+    setState(() {
+      _isRunning = true;
+      _status = "Running...";
+    });
 
-  final int numberOfQueries = 10;
-  final int seed = 42;
+    final int numberOfQueries = int.tryParse(_countController.text) ?? 10;
+    final int seed = 42;
 
-  // Fetch station and landskap names from database dynamically
-  final allValues = await fetchAllStationsAndLandskap();
-  final allStations = allValues['stations']!;
-  final allLandskap = allValues['landskap']!;
+    // Fetch station and landskap names from database dynamically
+    final allValues = await fetchAllStationsAndLandskap();
+    final allStations = allValues['stations']!;
+    final allLandskap = allValues['landskap']!;
 
-  // Randomize queries using seed
-  List<String> queries;
-  if (_queryType == 'station') {
-    queries = generateRandomQueries(allStations, numberOfQueries, seed);
-  } else {
-    queries = generateRandomQueries(allLandskap, numberOfQueries, seed);
+    // Randomize queries using seed
+    List<String> queries;
+    if (_queryType == 'station') {
+      queries = generateRandomQueries(allStations, numberOfQueries, seed);
+    } else {
+      queries = generateRandomQueries(allLandskap, numberOfQueries, seed);
+    }
+
+    // Start the performance test
+    final tester = PerformanceTester(
+      queryValues: queries,
+      fetcher: _source == 'mongo' ? fetchFromMongo : fetchFromFirebase,
+      queryType: _queryType,
+      intervalMs: 1500,
+      testName: '${_source}_${_queryType}_test',
+    );
+
+    await tester.runTest();
+
+    setState(() {
+      _isRunning = false;
+      _status = "Done! CSV saved.";
+    });
   }
-
-  // Start the performance test
-  final tester = PerformanceTester(
-    queryValues: queries,
-    fetcher: _source == 'mongo' ? fetchFromMongo : fetchFromFirebase,
-    queryType: _queryType,
-    intervalMs: 1500,
-    testName: '${_source}_${_queryType}_test',
-  );
-
-  await tester.runTest();
-
-  setState(() {
-    _isRunning = false;
-    _status = "Done! CSV saved.";
-  });
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -222,17 +227,27 @@ Future<void> startPerformanceTest() async {
             onChanged: (value) => setState(() => _source = value!),
           ),
           const SizedBox(height: 20),
+          TextField(
+            controller: _countController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: "Number of Iterations",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isRunning ? null : startPerformanceTest,
             child: const Text("Start Performance Test"),
           ),
           const SizedBox(height: 20),
-          Text(_status),
+          Text ('Status: $_status'),
         ],
       ),
     );
   }
 }
+
 class MyFirebasePage extends StatefulWidget {
   const MyFirebasePage({super.key, required this.title});
 
@@ -403,7 +418,8 @@ class _MyMongoPage extends State<MyMongoPage> {
           ElevatedButton(
             onPressed: () {
               setState(() {
-                _searchTermStateMongo = _searchControllerStateMongo.text.toLowerCase();
+                _searchTermStateMongo =
+                    _searchControllerStateMongo.text.toLowerCase();
                 _searchTermStationMongo =
                     _searchControllerStationMongo.text.toLowerCase();
               });
@@ -415,13 +431,15 @@ class _MyMongoPage extends State<MyMongoPage> {
             color: Colors.blue[100],
             height: 350,
             child: FutureBuilder(
-              future: fetchNdrbrdData(_searchTermStateMongo, _searchTermStationMongo),
+              future: fetchNdrbrdData(
+                  _searchTermStateMongo, _searchTermStationMongo),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text("Hittade ingen data från mongoDB"));
+                  return const Center(
+                      child: Text("Hittade ingen data från mongoDB"));
                 }
 
                 final data = snapshot.data!;
