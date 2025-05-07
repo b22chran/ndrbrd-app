@@ -19,8 +19,8 @@ app.get('/weather', async (req, res) => {
   const { landskap, station } = req.query;
   let query = {};
   
-  if (landskap) query.Landskap = new RegExp(landskap, 'i');
-  if (station) query.Station = new RegExp(station, 'i');
+  if (landskap) query.Landskap = landskap;
+  if (station) query.Station = station;
 
   try {
     const data = await Weather.find(query).limit(10000);
